@@ -79,6 +79,7 @@ defaultFnHandlers =
     , (RightArrow, handlerMoveNext)
     , (Home, handlerMoveHome)
     , (End, handlerMoveEnd)
+    , (Backspace, handlerDelBackward)
     ]
 
 modifyCurrentLine :: (Zipper Char -> Zipper Char) -> Readline ()
@@ -99,6 +100,9 @@ handlerMoveNext = gets rlCurrentLine >>= \z -> when (zipHasNext z) (moveRight 1 
 -- other moves
 handlerMoveHome = gets rlCurrentLine >>= moveLeft . zipLengthPrev >> modifyCurrentLine zipAtHome
 handlerMoveEnd = gets rlCurrentLine >>= moveRight . zipLengthNext >> modifyCurrentLine zipAtEnd
+
+-- deletions
+handlerDelBackward = moveLeft 1 >> modifyCurrentLine (zipDelPrev 1) >> displayToEnd "" " "
 
 -- accept
 handlerEnter f  = gets (zipToList . rlCurrentLine) >>= \l -> liftIO (f l) >> modifyCurrentLine (const (zipInit ""))
