@@ -84,9 +84,11 @@ defaultFnHandlers =
 modifyCurrentLine :: (Zipper Char -> Zipper Char) -> Readline ()
 modifyCurrentLine f = modify (\st -> st { rlCurrentLine = f $ rlCurrentLine st })
 
+displayToEnd pre post = gets rlCurrentLine >>= disp
+	where disp (Zipper _ n) = liftIO (putStr (pre ++ n ++ post)) >> moveLeft (length n + length post)
+
 otherHandler :: Char -> Readline ()
-otherHandler c = do modifyCurrentLine (zipInsert [c])
-                    gets rlCurrentLine >>= \(Zipper _ n) -> (liftIO (putStr (c:n)) >> moveLeft (length n))
+otherHandler c = modifyCurrentLine (zipInsert [c]) >> displayToEnd [c] ""
 
 readlineStateDefault = ReadlineState (zipInit []) (zipInit []) "" False defaultKeyHandlers defaultFnHandlers otherHandler
 
