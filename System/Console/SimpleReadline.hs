@@ -92,10 +92,15 @@ otherHandler c = modifyCurrentLine (zipInsert [c]) >> displayToEnd [c] ""
 
 readlineStateDefault = ReadlineState (zipInit []) (zipInit []) "" False defaultKeyHandlers defaultFnHandlers otherHandler
 
+-- simple moves
 handlerMovePrev = moveLeft 1 >> modifyCurrentLine zipPrev
 handlerMoveNext = gets rlCurrentLine >>= \z -> when (zipHasNext z) (moveRight 1 >> modifyCurrentLine zipNext)
+
+-- other moves
 handlerMoveHome = gets rlCurrentLine >>= moveLeft . zipLengthPrev >> modifyCurrentLine zipAtHome
 handlerMoveEnd = gets rlCurrentLine >>= moveRight . zipLengthNext >> modifyCurrentLine zipAtEnd
+
+-- accept
 handlerEnter f  = gets (zipToList . rlCurrentLine) >>= \l -> liftIO (f l) >> modifyCurrentLine (const (zipInit ""))
 
 readline st f = withTerm $ runReadline st $ loop
