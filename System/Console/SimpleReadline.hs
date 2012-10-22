@@ -64,13 +64,13 @@ defaultKeyHandlers =
          , ('\ACK', fn Forward) -- Ctrl+f
          , ('\EOT', fn ForwardDel) -- Ctrl+d (could be EOF if line is empty)
          , ('\ETB', fn DelWord) -- Ctrl+w
-         , ('\a', fn DelTillEOL) -- Ctrl+u
+         , ('\NAK', fn DelAll) -- Ctrl+u
          , ('\a', fn Bell) -- Ctrl+g
          , ('\b', fn DelPrev) -- Ctrl+g
          , ('\t', fn Tab)
          , ('\f', fn ClearScreen) -- Ctrl+l
          , ('\n', fn Enter)
-         , ('\v', fn KillText) -- Ctrl+k
+         , ('\v', fn DelTillEOL) -- Ctrl+k
          ]
     where fn = Leaf . KeyFn
 

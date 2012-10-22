@@ -35,7 +35,6 @@ data KeyFn = LeftArrow
            | Enter
            | ClearScreen
            | Tab
-           | KillText
            | Backward
            | Forward
            | Backspace
@@ -49,6 +48,7 @@ data KeyFn = LeftArrow
            | DelPrev
            | DelTillEOL
            | DelWord
+           | DelAll
            | PageUp
            | PageDown
            | ForwardDel
