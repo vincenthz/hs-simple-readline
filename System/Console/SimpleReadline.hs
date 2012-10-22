@@ -80,34 +80,46 @@ defaultFnHandlers =
     , (Home, handlerMoveHome)
     , (End, handlerMoveEnd)
     , (Backspace, handlerDelBackward)
+    , (DelTillEOL, handlerDelTillEOL)
     ]
 
 modifyCurrentLine :: (Zipper Char -> Zipper Char) -> Readline ()
 modifyCurrentLine f = modify (\st -> st { rlCurrentLine = f $ rlCurrentLine st })
 
-displayToEnd pre post = gets rlCurrentLine >>= disp
-	where disp (Zipper _ n) = liftIO (putStr (pre ++ n ++ post)) >> moveLeft (length n + length post)
 
-otherHandler :: Char -> Readline ()
+whenHasNext f = gets rlCurrentLine >>= \z -> when (zipHasNext z) f
+whenHasPrev f = gets rlCurrentLine >>= \z -> when (zipHasPrev z) f
+
+redisp post =
+    moveHome >>
+    gets rlPrompt >>= liftIO . putStr >>
+    gets rlCurrentLine >>= \z -> liftIO (putStr (zipToList z)) >> liftIO (putStr post)
+
+displayToEnd pre post = gets rlCurrentLine >>= disp
+	where disp (Zipper _ _ nlen n) = liftIO (putStr (pre ++ n ++ post)) >> moveLeft (nlen + length post)
 otherHandler c = modifyCurrentLine (zipInsert [c]) >> displayToEnd [c] ""
 
 readlineStateDefault = ReadlineState (zipInit []) (zipInit []) "" False defaultKeyHandlers defaultFnHandlers otherHandler
 
 -- simple moves
-handlerMovePrev = moveLeft 1 >> modifyCurrentLine zipPrev
-handlerMoveNext = gets rlCurrentLine >>= \z -> when (zipHasNext z) (moveRight 1 >> modifyCurrentLine zipNext)
+handlerMovePrev = whenHasPrev (moveLeft 1 >> modifyCurrentLine zipPrev)
+handlerMoveNext = whenHasNext (moveRight 1 >> modifyCurrentLine zipNext)
 
 -- other moves
 handlerMoveHome = gets rlCurrentLine >>= moveLeft . zipLengthPrev >> modifyCurrentLine zipAtHome
 handlerMoveEnd = gets rlCurrentLine >>= moveRight . zipLengthNext >> modifyCurrentLine zipAtEnd
 
 -- deletions
-handlerDelBackward = moveLeft 1 >> modifyCurrentLine (zipDelPrev 1) >> displayToEnd "" " "
+handlerDelBackward = whenHasPrev (moveLeft 1 >> modifyCurrentLine (zipDelPrev 1) >> displayToEnd "" " ")
+handlerDelTillEOL  = gets rlCurrentLine >>= \z -> displayToEnd "" (replicate (zipLengthNext z) ' ') >> modifyCurrentLine zipDelToEnd
 
 -- accept
-handlerEnter f  = gets (zipToList . rlCurrentLine) >>= \l -> liftIO (f l) >> modifyCurrentLine (const (zipInit ""))
+handlerEnter f =
+    gets (zipToList . rlCurrentLine) >>= \l -> liftIO (f l) >>
+    modifyCurrentLine (const (zipInit "")) >>
+    gets rlPrompt >>= liftIO . putStr
 
-readline st f = withTerm $ runReadline st $ loop
+readline st f = withTerm $ runReadline st (redisp "" >> loop)
     where loop = do
             n <- getNext
             case n of
