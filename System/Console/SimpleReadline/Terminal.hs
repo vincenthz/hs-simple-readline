@@ -37,7 +37,7 @@ termGet = liftM3 (,,) (hGetBuffering stdin) (hGetBuffering stdout) (hGetEcho std
 
 termInit = termGet >>= \old -> termSet (NoBuffering, NoBuffering, False) >> return old
 
-withTerm f = termInit >>= \old -> (f `E.finally` termSet old)
+withTerm f = liftIO termInit >>= \old -> (f `E.finally` liftIO (termSet old))
 
 getNext :: Readline Key
 getNext = do gets rlKeyHandlers >>= loop []
