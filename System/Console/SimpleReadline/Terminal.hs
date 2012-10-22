@@ -30,6 +30,9 @@ moveLeft = move "\ESC[D"
 moveRight :: Int -> Readline ()
 moveRight = move "\ESC[C"
 
+moveHome :: Readline ()
+moveHome = move "\r" 1
+
 termGet = liftM3 (,,) (hGetBuffering stdin) (hGetBuffering stdout) (hGetEcho stdout)
 
 termInit = termGet >>= \old -> termSet (NoBuffering, NoBuffering, False) >> return old
