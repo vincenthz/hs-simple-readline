@@ -50,6 +50,9 @@ zipDelToEnd (Zipper plen p _ _) = Zipper plen p 0 []
 zipToList :: Zipper a -> [a]
 zipToList (Zipper _ p _ n) = reverse p ++ n
 
+zipHasPrev :: Zipper a -> Bool
+zipHasPrev (Zipper _ p _ _) = not $ null p
+
 zipHasNext :: Zipper a -> Bool
 zipHasNext (Zipper _ _ _ n) = not $ null n
 
