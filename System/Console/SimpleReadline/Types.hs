@@ -57,7 +57,7 @@ data KeyFn = LeftArrow
            deriving (Show,Eq)
 
 data Key = KeyFn    KeyFn   -- recognized function
-         | KeyOther Char    -- others
+         | KeyOther Char    -- unrecognized input
          deriving (Show,Eq)
 
 data PrefixTree key val = Node [(key, PrefixTree key val)]

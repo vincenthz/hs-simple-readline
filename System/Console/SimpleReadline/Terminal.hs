@@ -43,6 +43,6 @@ getNext :: Readline Key
 getNext = do gets rlKeyHandlers >>= loop []
     where loop st hs = do c <- liftIO (hGetChar stdin)
                           case findInTree c hs of
-                               Nothing         -> return $ KeyOther c -- liftIO $ putStrLn ("other: " ++ show (reverse (c:st)))
+                               Nothing         -> {-liftIO (putStrLn ("other: " ++ show (reverse (c:st)))) >> -} return (KeyOther c)
                                Just (Leaf key) -> return key -- liftIO $ putStrLn (show key)
                                Just n@(Node _) -> loop (c:st) n
