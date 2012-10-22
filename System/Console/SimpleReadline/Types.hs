@@ -14,6 +14,7 @@ module System.Console.SimpleReadline.Types
     , PrefixTree(..)
     , findInTree
     , Readline
+    , ReadlineT
     , ReadlineState(..)
     , runReadline
     )
@@ -74,7 +75,10 @@ data ReadlineState = ReadlineState { rlHistory      :: Zipper String
                                    , rlOtherHandler :: (Char -> Readline ())
                                    }
 
-newtype Readline a = Readline { unReadline :: StateT ReadlineState IO a }
+newtype ReadlineT m a = ReadlineT { unReadlineT :: StateT ReadlineState m a }
     deriving (Monad, MonadIO, MonadState ReadlineState, Functor, Applicative)
 
-runReadline st f = runStateT (unReadline f) st
+type Readline = ReadlineT IO
+
+runReadline :: Monad m => ReadlineState -> ReadlineT m a -> m (a, ReadlineState)
+runReadline st f = runStateT (unReadlineT f) st
