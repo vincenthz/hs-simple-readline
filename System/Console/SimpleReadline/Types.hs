@@ -66,19 +66,19 @@ data PrefixTree key val = Node [(key, PrefixTree key val)]
 findInTree _ (Leaf _) = Nothing
 findInTree x (Node l) = lookup x l
 
-data ReadlineState = ReadlineState { rlHistory      :: Zipper String
-                                   , rlCurrentLine  :: Zipper Char
-                                   , rlPrompt       :: String
-                                   , rlQuit         :: Bool
-                                   , rlKeyHandlers  :: PrefixTree Char Key
-                                   , rlFnHandlers   :: [ (KeyFn, Readline ()) ]
-                                   , rlOtherHandler :: (Char -> Readline ())
-                                   }
+data ReadlineState m = ReadlineState { rlHistory      :: Zipper String
+                                     , rlCurrentLine  :: Zipper Char
+                                     , rlPrompt       :: String
+                                     , rlQuit         :: Bool
+                                     , rlKeyHandlers  :: PrefixTree Char Key
+                                     , rlFnHandlers   :: [ (KeyFn, ReadlineT m ()) ]
+                                     , rlOtherHandler :: (Char -> ReadlineT m ())
+                                     }
 
-newtype ReadlineT m a = ReadlineT { unReadlineT :: StateT ReadlineState m a }
-    deriving (Monad, MonadIO, MonadState ReadlineState, Functor, Applicative)
+newtype ReadlineT m a = ReadlineT { unReadlineT :: StateT (ReadlineState m) m a }
+    deriving (Monad, MonadIO, MonadState (ReadlineState m), Functor, Applicative)
 
 type Readline = ReadlineT IO
 
-runReadline :: Monad m => ReadlineState -> ReadlineT m a -> m (a, ReadlineState)
+runReadline :: (Monad m,MonadIO m) => ReadlineState m -> ReadlineT m a -> m (a, ReadlineState m)
 runReadline st f = runStateT (unReadlineT f) st

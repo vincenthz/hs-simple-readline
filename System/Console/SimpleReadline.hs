@@ -11,23 +11,29 @@ module System.Console.SimpleReadline
     ( readline
     , readlineStateDefault
     , ReadlineState(..)
+    , Readline(..)
+    , ReadlineT(..)
     -- * handlers
     , PrefixTree(..)
     , defaultKeyHandlers
     , defaultFnHandlers
     , otherHandler
+    , EnterBehavior(..)
     -- * handlers operations
     , setQuit
     , setPrompt
     , moveLeft
     , moveRight
     , modifyCurrentLine
+    -- * zipper operations
+    , module System.Console.SimpleReadline.Zipper
     ) where
 
 import System.Console.SimpleReadline.Types
 import System.Console.SimpleReadline.Terminal
 import System.Console.SimpleReadline.Zipper
 
+import Control.Applicative
 import Control.Monad.Trans
 import Control.Monad.State
 
@@ -43,8 +49,8 @@ defaultKeyHandlers =
                                                                              ])
                                                                 ])
                                                    ])
-                                      , ('2', Node [ ('~', fn Insert) ])
-                                      , ('3', Node [ ('~', fn Del) ])
+                                      , ('2', Node [ ('~', fn Insert) ]) -- Insert key
+                                      , ('3', Node [ ('~', fn Del) ]) -- Delete key
                                       , ('5', Node [ ('~', fn PageUp) ])
                                       , ('6', Node [ ('~', fn PageDown) ])
                                       ])
@@ -75,21 +81,30 @@ defaultKeyHandlers =
     where fn = Leaf . KeyFn
 
 defaultFnHandlers =
-    [ (LeftArrow, handlerMovePrev)
+    [ (LeftArrow , handlerMovePrev)
     , (RightArrow, handlerMoveNext)
-    , (Home, handlerMoveHome)
-    , (End, handlerMoveEnd)
-    , (Backspace, handlerDelBackward)
+    , (UpArrow   , handlerHistoryUp)
+    , (DownArrow , handlerHistoryDown)
+    , (Home      , handlerMoveHome)
+    , (End       , handlerMoveEnd)
+    , (Backspace , handlerDelBackward)
     , (DelTillEOL, handlerDelTillEOL)
+    , (DelAll    , handlerDelAll)
+    , (DelForward, handlerDelForward)
     ]
+
+data EnterBehavior = Quit | Retry | Ok
 
 modifyCurrentLine :: (Zipper Char -> Zipper Char) -> Readline ()
 modifyCurrentLine f = modify (\st -> st { rlCurrentLine = f $ rlCurrentLine st })
 
+modifyHistory :: (Zipper String -> Zipper String) -> Readline ()
+modifyHistory f = modify (\st -> st { rlHistory = f $ rlHistory st })
 
 whenHasNext f = gets rlCurrentLine >>= \z -> when (zipHasNext z) f
 whenHasPrev f = gets rlCurrentLine >>= \z -> when (zipHasPrev z) f
 
+redisp :: (Monad m, MonadIO m) => String -> ReadlineT m ()
 redisp post =
     moveHome >>
     gets rlPrompt >>= liftIO . putStr >>
@@ -109,18 +124,41 @@ handlerMoveNext = whenHasNext (moveRight 1 >> modifyCurrentLine zipNext)
 handlerMoveHome = gets rlCurrentLine >>= moveLeft . zipLengthPrev >> modifyCurrentLine zipAtHome
 handlerMoveEnd = gets rlCurrentLine >>= moveRight . zipLengthNext >> modifyCurrentLine zipAtEnd
 
+-- history
+handlerHistoryUp = gets (zipToList . rlCurrentLine) >>= \cl -> modifyHistory (zipPrev . zipInsert [cl])
+    >> insertHistory
+    
+handlerHistoryDown = gets (zipToList . rlCurrentLine) >>= \cl -> modifyHistory (zipNext . zipInsert [cl])
+    >> insertHistory
+
+insertHistory = return () -- get rlCurrentLine >>= \z -> gets (rlHistory) >>= \_ -> redisp ""
+
 -- deletions
 handlerDelBackward = whenHasPrev (moveLeft 1 >> modifyCurrentLine (zipDelPrev 1) >> displayToEnd "" " ")
-handlerDelTillEOL  = gets rlCurrentLine >>= \z -> displayToEnd "" (replicate (zipLengthNext z) ' ') >> modifyCurrentLine zipDelToEnd
+handlerDelTillEOL  = gets (zipLengthNext . rlCurrentLine) >>= \len ->
+    modifyCurrentLine zipDelToEnd >> displayToEnd "" (replicate len ' ')
+
+handlerDelAll = gets (zipLength . rlCurrentLine) >>= \len ->
+    modifyCurrentLine (const (zipInit "")) >> redisp (replicate len ' ') >> moveLeft len
+
+handlerDelForward = gets rlCurrentLine >>= \z ->
+    if zipLength z == 0
+        then setQuit >> liftIO (putStrLn "")
+        else whenHasPrev (modifyCurrentLine (zipDelNext 1) >> displayToEnd "" " ")
 
 -- accept
+handlerEnter :: (String -> Readline EnterBehavior) -> ReadlineT IO ()
 handlerEnter f =
-    gets (zipToList . rlCurrentLine) >>= \l -> liftIO (f l) >>
-    modifyCurrentLine (const (zipInit "")) >>
-    gets rlPrompt >>= liftIO . putStr
+    gets (zipToList . rlCurrentLine) >>= \l -> (liftIO (putStrLn "") >> f l) >>= \eb ->
+    case eb of
+        Quit  -> setQuit
+        Retry -> redisp ""
+        Ok    -> modifyCurrentLine (const (zipInit "")) >> gets rlPrompt >>= liftIO . putStr
 
-readline st f = withTerm $ runReadline st (redisp "" >> loop)
-    where loop = do
+readline :: ReadlineState IO -> (String -> Readline EnterBehavior) -> IO (ReadlineState IO)
+readline st f = withTerm (snd <$> runReadline st (redisp "" >> loop))
+    where loop :: ReadlineT IO ()
+          loop = do
             n <- getNext
             case n of
                 KeyFn Enter -> handlerEnter f
@@ -135,8 +173,8 @@ readline st f = withTerm $ runReadline st (redisp "" >> loop)
                 then return ()
                 else loop
 
-setPrompt :: String -> Readline ()
+setPrompt :: (Monad m, MonadIO m) => String -> ReadlineT m ()
 setPrompt s = modify (\st -> st { rlPrompt = s })
 
-setQuit :: Readline ()
+setQuit :: (Monad m, MonadIO m) => ReadlineT m ()
 setQuit = modify (\st -> st { rlQuit = True })

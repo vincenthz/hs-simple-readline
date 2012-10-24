@@ -21,25 +21,26 @@ termSet (bufIn, bufOut, echoOut) =
     hSetBuffering stdout bufOut >>
     hSetEcho stdout echoOut
 
-move :: String -> Int -> Readline ()
+move :: (Monad m, MonadIO m) => String -> Int -> ReadlineT m ()
 move mvStr n = liftIO $ putStr $ concat $ replicate n mvStr
 
-moveLeft :: Int -> Readline ()
+moveLeft :: (Monad m, MonadIO m) => Int -> ReadlineT m ()
 moveLeft = move "\ESC[D"
 
-moveRight :: Int -> Readline ()
+moveRight :: (Monad m, MonadIO m) => Int -> ReadlineT m ()
 moveRight = move "\ESC[C"
 
-moveHome :: Readline ()
+moveHome :: (Monad m, MonadIO m) => ReadlineT m ()
 moveHome = move "\r" 1
 
 termGet = liftM3 (,,) (hGetBuffering stdin) (hGetBuffering stdout) (hGetEcho stdout)
 
 termInit = termGet >>= \old -> termSet (NoBuffering, NoBuffering, False) >> return old
 
-withTerm f = liftIO termInit >>= \old -> (f `E.finally` liftIO (termSet old))
+withTerm :: IO a -> IO a
+withTerm f = termInit >>= \old -> f `E.finally` termSet old
 
-getNext :: Readline Key
+getNext :: ReadlineT IO Key
 getNext = do gets rlKeyHandlers >>= loop []
     where loop st hs = do c <- liftIO (hGetChar stdin)
                           case findInTree c hs of
