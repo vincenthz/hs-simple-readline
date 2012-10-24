@@ -63,7 +63,7 @@ data Key = KeyFn    KeyFn   -- recognized function
 data PrefixTree key val = Node [(key, PrefixTree key val)]
                         | Leaf val
 
-findInTree x (Leaf _) = Nothing
+findInTree _ (Leaf _) = Nothing
 findInTree x (Node l) = lookup x l
 
 data ReadlineState = ReadlineState { rlHistory      :: Zipper String
