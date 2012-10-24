@@ -50,9 +50,9 @@ data KeyFn = LeftArrow
            | DelTillEOL
            | DelWord
            | DelAll
+           | DelForward
            | PageUp
            | PageDown
-           | ForwardDel
            | Bell
            deriving (Show,Eq)
 

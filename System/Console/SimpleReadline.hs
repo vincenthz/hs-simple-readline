@@ -62,7 +62,7 @@ defaultKeyHandlers =
          , ('\DC2', fn SearchBackwardHistory) -- Ctrl+r
          , ('\STX', fn Backward) -- Ctrl+b
          , ('\ACK', fn Forward) -- Ctrl+f
-         , ('\EOT', fn ForwardDel) -- Ctrl+d (could be EOF if line is empty)
+         , ('\EOT', fn DelForward) -- Ctrl+d (could be EOF if line is empty)
          , ('\ETB', fn DelWord) -- Ctrl+w
          , ('\NAK', fn DelAll) -- Ctrl+u
          , ('\a', fn Bell) -- Ctrl+g
