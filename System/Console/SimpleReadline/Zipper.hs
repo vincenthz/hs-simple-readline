@@ -62,7 +62,5 @@ zipLengthNext (Zipper _ _ nlen _) = nlen
 zipLengthPrev :: Zipper a -> Int
 zipLengthPrev (Zipper plen _ _ _) = plen
 
-safeDrop n l
-	| null l    = []
-	| n == 0    = l
-	| otherwise = safeDrop (n-1) (tail l)
+zipLength :: Zipper a -> Int
+zipLength z = zipLengthNext z + zipLengthPrev z
