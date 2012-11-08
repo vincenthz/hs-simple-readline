@@ -11,7 +11,7 @@ module System.Console.SimpleReadline
     ( readline
     , readlineStateDefault
     , ReadlineState(..)
-    , Readline(..)
+    , Readline
     , ReadlineT(..)
     -- * handlers
     , PrefixTree(..)
@@ -94,6 +94,7 @@ defaultFnHandlers =
     ]
 
 data EnterBehavior = Quit | Retry | Ok
+type Handler = Readline ()
 
 modifyCurrentLine :: (Zipper Char -> Zipper Char) -> Readline ()
 modifyCurrentLine f = modify (\st -> st { rlCurrentLine = f $ rlCurrentLine st })
@@ -116,15 +117,19 @@ otherHandler c = modifyCurrentLine (zipInsert [c]) >> displayToEnd [c] ""
 
 readlineStateDefault = ReadlineState (zipInit []) (zipInit []) "" False defaultKeyHandlers defaultFnHandlers otherHandler
 
+
 -- simple moves
+handlerMovePrev, handlerMoveNext :: Handler
 handlerMovePrev = whenHasPrev (moveLeft 1 >> modifyCurrentLine zipPrev)
 handlerMoveNext = whenHasNext (moveRight 1 >> modifyCurrentLine zipNext)
 
 -- other moves
+handlerMoveHome, handlerMoveEnd :: Handler
 handlerMoveHome = gets rlCurrentLine >>= moveLeft . zipLengthPrev >> modifyCurrentLine zipAtHome
 handlerMoveEnd = gets rlCurrentLine >>= moveRight . zipLengthNext >> modifyCurrentLine zipAtEnd
 
 -- history
+handlerHistoryUp, handlerHistoryDown :: Handler
 handlerHistoryUp = gets (zipToList . rlCurrentLine) >>= \cl -> modifyHistory (zipPrev . zipInsert [cl])
     >> insertHistory
     
@@ -134,6 +139,7 @@ handlerHistoryDown = gets (zipToList . rlCurrentLine) >>= \cl -> modifyHistory (
 insertHistory = return () -- get rlCurrentLine >>= \z -> gets (rlHistory) >>= \_ -> redisp ""
 
 -- deletions
+handlerDelBackward, handlerDelTillEOL, handlerDelAll, handlerDelForward :: Handler
 handlerDelBackward = whenHasPrev (moveLeft 1 >> modifyCurrentLine (zipDelPrev 1) >> displayToEnd "" " ")
 handlerDelTillEOL  = gets (zipLengthNext . rlCurrentLine) >>= \len ->
     modifyCurrentLine zipDelToEnd >> displayToEnd "" (replicate len ' ')
@@ -147,7 +153,7 @@ handlerDelForward = gets rlCurrentLine >>= \z ->
         else whenHasPrev (modifyCurrentLine (zipDelNext 1) >> displayToEnd "" " ")
 
 -- accept
-handlerEnter :: (String -> Readline EnterBehavior) -> ReadlineT IO ()
+handlerEnter :: (String -> Readline EnterBehavior) -> Handler
 handlerEnter f =
     gets (zipToList . rlCurrentLine) >>= \l -> (liftIO (putStrLn "") >> f l) >>= \eb ->
     case eb of
